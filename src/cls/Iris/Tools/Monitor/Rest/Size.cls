@@ -5,13 +5,13 @@ Parameter CONTENTTYPE = "application/json";
 
 XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 {
-    <Routes>
+<Routes>
       <Route Url="/v1/dbsize" Method="GET" Call="getDBSize"/>
       <Route Url="/v1/test" Method="GET" Call="test"/>
       <Route Url="/v1/gsize" Method="GET" Call="getGSize"/>
       <Route Url="/v1/directorybyname/:databaseName" Method="GET" Call="getDirectoryByDBName"/>
       <Route Url="/v1/alldirectory" Method="GET" Call="getAllDirectory"/>
-   </Routes> 
+   </Routes>
 }
 
 ClassMethod test() As %Status
@@ -19,6 +19,7 @@ ClassMethod test() As %Status
 	Write {"test":($zdt($h,3,1))}.%ToJSON()
 	Return $$$OK
 }
+
 ClassMethod getDBSize() As %Status
 {
 	Set tSc = $$$OK
@@ -75,6 +76,22 @@ ClassMethod getDirectoryByDBName(databaseName As %String = "") As %Status
 	Set directory = ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirectory(databaseName)
 	Set jsonResponse = { "database" : { "databaseName" : (databaseName),"directory" : (directory)}}
 	Do jsonResponse.%ToJSON()
+	Return tSc
+}
+
+/// init install
+ClassMethod setupRestWebApp(cspApp As %String) As %Status
+{
+	Set tSc = $$$OK, ns = $Namespace
+	Zn "%SYS"
+	Try {
+		$$$TOE(tSc,##class(Security.Applications).Get(cspApp,.p))
+		Set p("DispatchClass")="Iris.Tools.Monitor.Rest.Size"
+		$$$TOE(tSc,##class(Security.Applications).Modify(cspApp,.p))
+	} Catch (ex) {
+		Set tSc = ex.AsStatus()
+	}
+	Zn ns
 	Return tSc
 }
 

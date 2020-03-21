@@ -179,6 +179,8 @@ ClassMethod FilterDBSizeExecute(ByRef qHandle As %Binary, database As %String, r
     Set params($i(params))=recordType
     Set tStatement = ##class(%SQL.Statement).%New()
     Set sc = tStatement.%Prepare(.tSql)
+	;Set ^CacheTempDBSizeLast("sql")=tSql
+	;Merge ^CacheTempDBSizeLast("args") = params
     Set tResult = tStatement.execute(params...) ; ^lsc:No %Execute for passing array.  The first time I have bitten my keyboard... GoTo Read %SQL.Statement code for understanding.
     Return:(tResult.%SQLCODE'=0)&&(tResult.%SQLCODE'=100) $$$ERROR($$$SQLError, tResult.%SQLCODE, tResult.%Message) 
     Set qHandle=tResult

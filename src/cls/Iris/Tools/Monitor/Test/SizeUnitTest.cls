@@ -1,7 +1,7 @@
 Class Iris.Tools.Monitor.Test.SizeUnitTest Extends %UnitTest.TestCase
 {
 
-Property tempDirectory As %String [ InitialExpression = {##class(%File).NormalizeDirectory($Get(^UnitTestRoot))_"GlobalGrowthTracing\"}, Private ];
+Property tempDirectory As %String [ InitialExpression = {$zu(12,"unittest")}, Private ];
 
 Property testUpdateDatabaseGlobalSizeDone [ InitialExpression = 0, Private ];
 
@@ -37,7 +37,9 @@ Method backupData() As %Status
 			Quit
 		}
 	}
-	Do:##class(%File).Exists(dbSizeGof) ##class(%File).Delete(dbSizeGof) 
+	Set gofDir = ##class(%File).GetDirectory(dbSizeGof)
+	Do:##class(%File).Exists(dbSizeGof) ##class(%File).Delete(dbSizeGof)
+	Do:'##class(%File).DirectoryExists(gofDir) ##class(%File).CreateDirectoryChain(gofDir)
 	Set:backup tSc = ##class(%Library.Global).Export(,strGbl,dbSizeGof,7)
 	Return tSc
 }
