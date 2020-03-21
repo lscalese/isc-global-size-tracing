@@ -25,7 +25,9 @@ XData setup
       <Arg Value="/irisdev/app/src/cls/Iris/Tools/Monitor/Test/"/>
     </Invoke>
     <Invoke Class="Iris.Tools.Monitor.Tasks.UpdateSize" Method="installTask"></Invoke>
-    <Invoke Class="Iris.Tools.Monitor.Rest.Size" Method="setupRestWebApp"></Invoke>
+    <Invoke Class="Iris.Tools.Monitor.Rest.Size" Method="setupRestWebApp">
+      <Arg Value="/csp/${app}"/>
+    </Invoke>
   </Namespace>
 
 </Manifest>

@@ -53,7 +53,7 @@ This process retrieve all globals and database size and store the values to the 
 
 The scheduled task is installed by defaut by the Installer class.  
 
-Open an Iris terminal : 
+Manual install if needed, open an Iris terminal : 
 ```
 Zn "IRISAPP"
 Set tSc = ##class(Iris.Tools.Monitor.Tasks.UpdateSize).installTask()
