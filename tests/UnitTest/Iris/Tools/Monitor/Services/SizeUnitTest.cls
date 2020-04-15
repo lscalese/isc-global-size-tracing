@@ -1,4 +1,4 @@
-Class Iris.Tools.Monitor.Test.SizeUnitTest Extends %UnitTest.TestCase
+Class UnitTest.Iris.Tools.Monitor.SizeUnitTest Extends %UnitTest.TestCase
 {
 
 Property tempDirectory As %String [ InitialExpression = {$zu(12,"unittest")}, Private ];

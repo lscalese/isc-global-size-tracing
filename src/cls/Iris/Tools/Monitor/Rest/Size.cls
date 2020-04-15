@@ -79,20 +79,4 @@ ClassMethod getDirectoryByDBName(databaseName As %String = "") As %Status
 	Return tSc
 }
 
-/// init install
-ClassMethod setupRestWebApp(cspApp As %String) As %Status
-{
-	Set tSc = $$$OK, ns = $Namespace
-	Zn "%SYS"
-	Try {
-		$$$TOE(tSc,##class(Security.Applications).Get(cspApp,.p))
-		Set p("DispatchClass")="Iris.Tools.Monitor.Rest.Size"
-		$$$TOE(tSc,##class(Security.Applications).Modify(cspApp,.p))
-	} Catch (ex) {
-		Set tSc = ex.AsStatus()
-	}
-	Zn ns
-	Return tSc
-}
-
 }

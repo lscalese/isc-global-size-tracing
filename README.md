@@ -64,7 +64,8 @@ Set tSc = ##class(Iris.Tools.Monitor.Tasks.UpdateSize).installTask()
 Running unit test : 
 ```
 zn "IRISAPP"
-Do ##class(Iris.Tools.Monitor.Test.UnitTestUtils).StartUnitTest()
+Set ^UnitTestRoot="/irisdev/app/tests/"
+Do ##class(%UnitTest.Manager).RunTest(,"/nodelete")
 ```
 
 ## Retrieving data

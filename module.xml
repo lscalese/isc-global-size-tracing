@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25">
+  <Document name="global-size-tracing.ZPM">
+    <Module>
+        <Name>global-size-tracing</Name>
+        <Version>1.1.3</Version>
+        <Packaging>module</Packaging>
+        <SourcesRoot>src</SourcesRoot>
+        <Resource Name="Iris.Tools.Monitor.PKG"/>
+        
+        <CSPApplication 
+            SourcePath="/web"
+            DeployPath="${cspdir}/globaltracing"
+            Url="/csp/globaltracing" 
+            CookiePath="/csp/globaltracing/"
+            PasswordAuthEnabled="1"
+            AuthenticationMethods="32" 
+            Recurse="1"
+            MatchRoles=":%DB_${Namespace}"
+            DispatchClass="Iris.Tools.Monitor.Rest.Size"/>
+        <Invokes>
+            <Invoke Class="Iris.Tools.Monitor.Tasks.UpdateSize" Method="installTask"></Invoke>
+        </Invokes>
+
+        <UnitTest Name="/tests" Package="UnitTest.Iris.Tools.Monitor" Phase="test"/>
+    </Module>
+  </Document>
+</Export>
