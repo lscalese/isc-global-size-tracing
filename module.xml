@@ -3,7 +3,7 @@
   <Document name="global-size-tracing.ZPM">
     <Module>
         <Name>global-size-tracing</Name>
-        <Version>1.1.3</Version>
+        <Version>1.1.4</Version>
         <Packaging>module</Packaging>
         <SourcesRoot>src</SourcesRoot>
         <Resource Name="Iris.Tools.Monitor.PKG"/>
