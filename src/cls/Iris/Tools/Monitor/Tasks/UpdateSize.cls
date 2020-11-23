@@ -14,23 +14,31 @@ Property latestDBSizeFile As %String(MAXLEN = 256);
 /// If true, decimal separator is "," in csv file
 Property decimalPointIsComma As %Boolean [ InitialExpression = 0 ];
 
+/// if not empty, global size will be performed only for listed database<br/>
+/// ex: /opt/irisapp/data/,/usr/irissys/mgr/user/ <br/>
+Property dbList As %String(MAXLEN = 1024);
+
 Method OnTask() As %Status
 {
 	Set tSc = $$$OK
 	Try {
-		$$$TOE(sc,..cmTask(..latestSizeFile,..latestDBSizeFile,..decimalPointIsComma))
+		$$$TOE(sc,..cmTask(..latestSizeFile,..latestDBSizeFile,..decimalPointIsComma,..dbList))
 	}Catch(ex) {
 		Set tSc = ex.AsStatus()
 	}
 	Return tSc
 }
 
-ClassMethod cmTask(latestSizeFile As %String = "", latestDBSizeFile As %String = "", decimalPointIsComma As %Boolean = 0) As %Status
+ClassMethod cmTask(latestSizeFile As %String = "", latestDBSizeFile As %String = "", decimalPointIsComma As %Boolean = 0, dbList As %String = "") As %Status
 {
 	Set tSc = $$$OK
 	Try {
-		$$$TOE(tSc,##class(Iris.Tools.Monitor.Services.DBSizeServices).updateAllDBSize())
-		$$$TOE(tSc,##class(Iris.Tools.Monitor.Services.GlobalSizeServices).updateAllDBGlobalSize())
+		If dbList = "" {
+			$$$TOE(tSc,##class(Iris.Tools.Monitor.Services.GlobalSizeServices).updateAllDBGlobalSize())
+		} Else {
+			Set list = $Listfromstring(dbList, "," )
+			$$$TOE(tSc,##class(Iris.Tools.Monitor.Services.GlobalSizeServices).updateDatabasesGlobalSize(list))
+		}
 		Do:+decimalPointIsComma ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).setDecimalPointIsComma(1)
 		If (latestSizeFile'="") {
 			$$$TOE(tSc,##class(Iris.Tools.Monitor.Services.GlobalSizeServices).exportSizeToFile(latestSizeFile,$zd($h,3)))
