@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Export generator="Cache" version="26" zv="IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2020.4 (Build 521U)" ts="2020-11-23 15:05:02">
+<Export generator="Cache" version="26" zv="IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2020.4 (Build 521U)" ts="2020-11-23 16:45:10">
 <Class name="Iris.Tools.Monitor.Dao.DBSizeDAO">
 <TimeChanged>65706,45259.291031</TimeChanged>
 <TimeCreated>65706,45259.291031</TimeCreated>
@@ -1433,13 +1433,62 @@ deprecated use : ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirect
 </Class>
 
 
+<Class name="Iris.Tools.Monitor.Tasks.Projection">
+<Super>%Projection.AbstractProjection</Super>
+<TimeChanged>65706,59895.461747</TimeChanged>
+<TimeCreated>65706,59387.160243</TimeCreated>
+
+<Method name="CreateProjection">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[classname:%String,&parameters:%String,modified:%String,qstruct]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+    New $namespace
+    Set oldNs = $namespace
+    Set $namespace = "%SYS"
+    set webName = "/csp/globaltracing"
+    Quit:##class(Security.Applications).Exists(webName) $$$OK
+    set webProperties("NameSpace") = oldNs
+    set webProperties("Enabled") = 1
+    set webProperties("CSPZENEnabled") = 1
+    set webProperties("AutheEnabled") = 64
+    set webProperties("iKnowEnabled") = 0
+    set webProperties("DeepSeeEnabled") = 0
+    Set webProperties("DispatchClass")="Iris.Tools.Monitor.Rest.Size"
+    Set webProperties("MatchRoles")=":%DB_%DEFAULT"
+    set sc = ##class(Security.Applications).Create(webName, .webProperties)
+    write "Web application "_webName_" creation status : ", $SYSTEM.Status.GetOneErrorText(sc),! 
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="RemoveProjection">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[classname:%String,&parameters:%String,recompile:%Boolean,modified:%String,qstruct]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+    New $namespace
+    Set $namespace = "%SYS"
+    set webName = "/csp/globaltracing"
+    Quit:'##class(Security.Applications).Exists(webName) $$$OK
+    Do ##class(Security.Applications).Delete(webName)
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+</Class>
+
+
 <Class name="Iris.Tools.Monitor.Tasks.UpdateSize">
 <Description><![CDATA[
 Task used for update data of growth of global size<br/>
 Should be performed every day.]]></Description>
 <Super>%SYS.Task.Definition</Super>
-<TimeChanged>65706,53548.603293</TimeChanged>
+<TimeChanged>65706,59964.758249</TimeChanged>
 <TimeCreated>65706,45259.355513</TimeCreated>
+
+<Projection name="autoDeploy">
+<Type>Iris.Tools.Monitor.Tasks.Projection</Type>
+</Projection>
 
 <Parameter name="TaskName">
 <Default>Global Size Updater</Default>
@@ -1529,7 +1578,7 @@ Install the task for execution every day at 11:00 p.m.</Description>
 	Set task.DailyFrequency = 0
 	Set task.DailyFrequencyTime = ""
 	Set task.DailyIncrement = ""
-	Set task.DailyStartTime = 23*3600	; 11:00 p.m.
+	Set task.DailyStartTime = 1*3600	; 1:00 a.m.
 	Set task.DailyEndTime = ""
 	Set task.TimePeriod = 0
 	Set task.TimePeriodEvery = 1

@@ -3,6 +3,8 @@
 Class Iris.Tools.Monitor.Tasks.UpdateSize Extends %SYS.Task.Definition
 {
 
+Projection autoDeploy As Iris.Tools.Monitor.Tasks.Projection;
+
 Parameter TaskName = "Global Size Updater";
 
 /// If a filename is set, a csv file will be created with the last gobal size update.
@@ -64,7 +66,7 @@ ClassMethod installTask() As %Status
 	Set task.DailyFrequency = 0
 	Set task.DailyFrequencyTime = ""
 	Set task.DailyIncrement = ""
-	Set task.DailyStartTime = 23*3600	; 11:00 p.m.
+	Set task.DailyStartTime = 1*3600	; 1:00 a.m.
 	Set task.DailyEndTime = ""
 	Set task.TimePeriod = 0
 	Set task.TimePeriodEvery = 1
