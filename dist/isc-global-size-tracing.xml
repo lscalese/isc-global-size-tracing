@@ -1444,6 +1444,7 @@ deprecated use : ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirect
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
     New $namespace
+	Do ##class(Iris.Tools.Monitor.Tasks.UpdateSize).installTask()
     Set oldNs = $namespace
     Set $namespace = "%SYS"
     set webName = "/csp/globaltracing"

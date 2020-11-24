@@ -4,6 +4,7 @@ Class Iris.Tools.Monitor.Tasks.Projection Extends %Projection.AbstractProjection
 ClassMethod CreateProjection(classname As %String, ByRef parameters As %String, modified As %String, qstruct) As %Status
 {
     New $namespace
+    Do ##class(Iris.Tools.Monitor.Tasks.UpdateSize).installTask()
     Set oldNs = $namespace
     Set $namespace = "%SYS"
     set webName = "/csp/globaltracing"
