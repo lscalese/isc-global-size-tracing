@@ -35,6 +35,7 @@ ClassMethod cmTask(latestSizeFile As %String = "", latestDBSizeFile As %String =
 {
 	Set tSc = $$$OK
 	Try {
+		$$$TOE(tSc,##class(Iris.Tools.Monitor.Services.DBSizeServices).updateAllDBSize())
 		If dbList = "" {
 			$$$TOE(tSc,##class(Iris.Tools.Monitor.Services.GlobalSizeServices).updateAllDBGlobalSize())
 		} Else {

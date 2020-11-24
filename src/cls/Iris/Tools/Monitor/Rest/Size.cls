@@ -34,7 +34,7 @@ ClassMethod getDBSize() As %Status
 	Set:endDate="" endDate=$zd($h,3)
 	
 	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.DBSizeServices).get(directory,recordType,startDate,endDate)
-	Do jsonResponse.%ToJSON()
+	Write jsonResponse.%ToJSON()
 	Return tSc
 }
 
@@ -54,7 +54,7 @@ ClassMethod getGSize() As %Status
 	Set:endDate="" endDate=$zd($h,3)
 	
 	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate)
-	Do jsonResponse.%ToJSON()
+	Write jsonResponse.%ToJSON()
 	Return tSc
 }
 
@@ -66,7 +66,7 @@ ClassMethod getAllDirectory() As %Status
 		Do array.%Push(directory)
 	}
 	Set jsonResponse = { "directoryList" : (array) }
-	Do jsonResponse.%ToJSON()
+	Write jsonResponse.%ToJSON()
 	Return tSc
 }
 
@@ -75,7 +75,7 @@ ClassMethod getDirectoryByDBName(databaseName As %String = "") As %Status
 	Set tSc = $$$OK
 	Set directory = ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirectory(databaseName)
 	Set jsonResponse = { "database" : { "databaseName" : (databaseName),"directory" : (directory)}}
-	Do jsonResponse.%ToJSON()
+	Write jsonResponse.%ToJSON()
 	Return tSc
 }
 
