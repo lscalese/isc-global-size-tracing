@@ -34,12 +34,17 @@ ClassMethod updateAllDBGlobalSize() As %Status
 /// <li><b>endDate</b>: end date in %TimeStamp format</li>
 /// </ul>
 /// Return a %DynamicArray for easy use in a rest call.<br/>
-ClassMethod get(database As %String = "*", global As %String = "*", recordType As %String = "Day", startDate As %TimeStamp = { $zd($h,3)}, endDate As %TimeStamp = { $zd($h,3)}, max As %Integer = -1) As %DynamicArray
+ClassMethod get(database As %String = "*", global As %String = "*", recordType As %String = "Day", startDate As %TimeStamp = { $zd($h,3)}, endDate As %TimeStamp = { $zd($h,3)}) As %DynamicArray
 {
 	Set startDateH = $zdh(startDate,3)
 	Set endDateH = $zdh(endDate,3)
-	Set tDynArray = ##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).get(.database,.global,.recordType,.startDateH,.endDateH,max)
+	Set tDynArray = ##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).get(.database,.global,.recordType,.startDateH,.endDateH)
 	Return tDynArray
+}
+
+ClassMethod topGlobals(top As %Integer, database As %String, recordType As %String = "Day") As %List
+{
+	Return ##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).getTopGlobals(top, database, recordType)
 }
 
 /// Usefull method to retrieve size of global data, following filters : <br/><ul>
