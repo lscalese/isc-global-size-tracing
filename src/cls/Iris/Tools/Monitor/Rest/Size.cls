@@ -42,6 +42,9 @@ ClassMethod getGSize() As %Status
 {
 	Set tSc = $$$OK
 	Set directory = $Get(%request.Data("directory",1))
+	Set:directory="" directory="*"
+	Set:directory["," directory = $Lfs(directory, ",")
+
 	Set globals = $Get(%request.Data("global",1))
 	Set recordType = $Get(%request.Data("recordType",1))
 	Set startDate = $Get(%request.Data("startDate",1))
@@ -49,14 +52,21 @@ ClassMethod getGSize() As %Status
 	Set max = +$Get(%request.Data("top",1), -1)
 	Set:max=0 max = -1
 
-	Set:directory="" directory="*"
-	Set:directory["," directory = $Lfs(directory, ",")
+	If max '= -1 {
+		If (directory = "*") || $Lv(directory) {
+			Set %response.Status=..#HTTP400BADREQUEST
+			Quit $$$OK
+		}
+		Set globals = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).topGlobals(max, directory, "Day")
+	}
+
+	
 	Set:globals="" globals="*"
 	Set:recordType="" recordType="Day"
 	Set:startDate="" startDate=$zd($h,3)
 	Set:endDate="" endDate=$zd($h,3)
 	
-	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate,max)
+	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate)
 	Write jsonResponse.%ToJSON()
 	Return tSc
 }
