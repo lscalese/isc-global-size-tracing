@@ -46,14 +46,17 @@ ClassMethod getGSize() As %Status
 	Set recordType = $Get(%request.Data("recordType",1))
 	Set startDate = $Get(%request.Data("startDate",1))
 	Set endDate = $Get(%request.Data("endDate",1))
-	
+	Set max = +$Get(%request.Data("top",1), -1)
+	Set:max=0 max = -1
+
 	Set:directory="" directory="*"
+	Set:directory["," directory = $Lfs(directory, ",")
 	Set:globals="" globals="*"
 	Set:recordType="" recordType="Day"
 	Set:startDate="" startDate=$zd($h,3)
 	Set:endDate="" endDate=$zd($h,3)
 	
-	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate)
+	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate,max)
 	Write jsonResponse.%ToJSON()
 	Return tSc
 }
