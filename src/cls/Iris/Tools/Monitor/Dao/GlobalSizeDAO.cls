@@ -61,13 +61,13 @@ ClassMethod setSize(recordType As %String, database As %String, global As %Strin
 /// <li><b>startDate</b>: start date in %Date format</li>
 /// <li><b>endDate</b>: end date in %Date format</li>
 /// </ul>
-ClassMethod get(database As %String, global As %String = "*", recordType As %String, startDate As %Date, endDate As %Date = {+$h}) As %DynamicArray
+ClassMethod get(database As %String, global As %String = "*", recordType As %String, startDate As %Date, endDate As %Date = {+$h}, max As %Integer = -1) As %DynamicArray
 {
 	Set response = []
 	Set tStatement = ##class(%SQL.Statement).%New()
 	Set sc = tStatement.%PrepareClassQuery("Iris.Tools.Monitor.Dao.GlobalSizeDAO","FilterGlobalSize")
 	If $$$ISERR(sc) $$$ThrowStatus(sc)
-	Set tResult = tStatement.%Execute(.database,.global,.recordType,.startDate,.endDate)
+	Set tResult = tStatement.%Execute(.database,.global,.recordType,.startDate,.endDate,max)
 	If (tResult.%SQLCODE'=0)&&(tResult.%SQLCODE'=100) $$$ThrowStatus($$$ERROR($$$SQLError, tResult.%SQLCODE, tResult.%Message)) 
 	While tResult.%Next() {
 		Set tObj = ..getDTO(tResult.%Get("database"),
@@ -154,11 +154,11 @@ ClassMethod exportToStream(ByRef stream As %Stream.GlobalCharacter = {##class(%S
 	Return sc
 }
 
-Query FilterGlobalSize(database As %String, global As %String, recordType As %String, startDate As %Date, endDate As %Date) As %Query(ROWSPEC = "database:%String,global:%String,allocatedInMB:%Float,tsUpdate:%TimeStamp,tsCreate:%TimeStamp,Year:%Integer,Month:%Integer,Week:%Integer,sizeDate:%Date,uHlp:%Integer,tsDate:%TimeStamp") [ SqlProc ]
+Query FilterGlobalSize(database As %String, global As %String, recordType As %String, startDate As %Date, endDate As %Date, max As %Integer = -1) As %Query(ROWSPEC = "database:%String,global:%String,allocatedInMB:%Float,tsUpdate:%TimeStamp,tsCreate:%TimeStamp,Year:%Integer,Month:%Integer,Week:%Integer,sizeDate:%Date,uHlp:%Integer,tsDate:%TimeStamp") [ SqlProc ]
 {
 }
 
-ClassMethod FilterGlobalSizeExecute(ByRef qHandle As %Binary, database As %String, global As %String, recordType As %String, startDate As %Date, endDate As %Date) As %Status
+ClassMethod FilterGlobalSizeExecute(ByRef qHandle As %Binary, database As %String, global As %String, recordType As %String, startDate As %Date, endDate As %Date, max As %Integer = -1) As %Status
 {
 	Set startUHlp = ##class(Iris.Tools.Monitor.Data.GlobalSize).cmUHlpGet(.recordType,.startDate)
     Set endUHlp = ##class(Iris.Tools.Monitor.Data.GlobalSize).cmUHlpGet(.recordType,.endDate)
@@ -167,7 +167,10 @@ ClassMethod FilterGlobalSizeExecute(ByRef qHandle As %Binary, database As %Strin
     			_"WHERE uHLP >= ? AND uHLP <= ? "
     			_$s($lv(database):"and database %INLIST ? ",database'="*":"and database = ? ",1:"")
     			_$s($lv(global):"and sql_global %INLIST ? ",global'="*":"and sql_global = ? ",1:"")
-    			_"and recordType = ?"
+    			_"and recordType = ? "
+				
+	Set:max'=-1 tSql = tSql _"ORDER BY allocatedInMB DESC "
+	
     Set params($i(params))=startUHlp
     Set params($i(params))=endUHlp
     Set:database'="*" params($i(params))=database
@@ -177,17 +180,20 @@ ClassMethod FilterGlobalSizeExecute(ByRef qHandle As %Binary, database As %Strin
     Set sc = tStatement.%Prepare(.tSql)
 	Set tResult = tStatement.execute(params...) ; ^lsc:No %Execute for passing array.  The first time I have bitten my keyboard... GoTo Read %SQL.Statement code for understanding.
     Return:(tResult.%SQLCODE'=0)&&(tResult.%SQLCODE'=100) $$$ERROR($$$SQLError, tResult.%SQLCODE, tResult.%Message) 
-    Set qHandle=tResult
-    Quit $$$OK
+    Set qHandle(1)=tResult
+	Set qHandle("max")=max
+	Set qHandle("cnt")=0
+	Quit $$$OK
 }
 
 ClassMethod FilterGlobalSizeFetch(ByRef qHandle As %Binary, ByRef Row As %List, ByRef AtEnd As %Integer = 0) As %Status [ PlaceAfter = FilterGlobalSizeExecute ]
 {
-	Set tResult=qHandle, sc = $$$OK
-	If 'tResult.%Next() {
+	Set tResult=qHandle(1), sc = $$$OK
+	If 'tResult.%Next() || ( ( qHandle("max") '= -1 ) && ( +qHandle("cnt") = qHandle("max") ) ) {
 		Set AtEnd = 1
 		Set Row = ""
 	}Else{
+		Set qHandle("cnt") = $Increment(qHandle("cnt"))
 		Set Row = $Listbuild(tResult.%Get("database"),tResult.%Get("sql_global"),tResult.%Get("allocatedInMB"),tResult.%Get("tsUpdate"),tResult.%Get("tsCreate"),tResult.%Get("Year"),tResult.%Get("Month"),tResult.%Get("Week"),tResult.%Get("sizeDate"),tResult.%Get("uHlp"),$zd(tResult.%Get("sizeDate"),3))
 	}
 	Return sc
@@ -195,7 +201,7 @@ ClassMethod FilterGlobalSizeFetch(ByRef qHandle As %Binary, ByRef Row As %List, 
 
 ClassMethod FilterGlobalSizeClose(ByRef qHandle As %Binary) As %Status [ PlaceAfter = FilterGlobalSizeFetch ]
 {
-	Set qHandle=""
+	Set qHandle(1)=""
     Return $$$OK
 }
 

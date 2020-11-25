@@ -34,7 +34,7 @@ ClassMethod getDBSize() As %Status
 	Set:endDate="" endDate=$zd($h,3)
 	
 	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.DBSizeServices).get(directory,recordType,startDate,endDate)
-	Do jsonResponse.%ToJSON()
+	Write jsonResponse.%ToJSON()
 	Return tSc
 }
 
@@ -46,15 +46,18 @@ ClassMethod getGSize() As %Status
 	Set recordType = $Get(%request.Data("recordType",1))
 	Set startDate = $Get(%request.Data("startDate",1))
 	Set endDate = $Get(%request.Data("endDate",1))
-	
+	Set max = +$Get(%request.Data("top",1), -1)
+	Set:max=0 max = -1
+
 	Set:directory="" directory="*"
+	Set:directory["," directory = $Lfs(directory, ",")
 	Set:globals="" globals="*"
 	Set:recordType="" recordType="Day"
 	Set:startDate="" startDate=$zd($h,3)
 	Set:endDate="" endDate=$zd($h,3)
 	
-	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate)
-	Do jsonResponse.%ToJSON()
+	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate,max)
+	Write jsonResponse.%ToJSON()
 	Return tSc
 }
 
@@ -66,7 +69,7 @@ ClassMethod getAllDirectory() As %Status
 		Do array.%Push(directory)
 	}
 	Set jsonResponse = { "directoryList" : (array) }
-	Do jsonResponse.%ToJSON()
+	Write jsonResponse.%ToJSON()
 	Return tSc
 }
 
@@ -75,7 +78,7 @@ ClassMethod getDirectoryByDBName(databaseName As %String = "") As %Status
 	Set tSc = $$$OK
 	Set directory = ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirectory(databaseName)
 	Set jsonResponse = { "database" : { "databaseName" : (databaseName),"directory" : (directory)}}
-	Do jsonResponse.%ToJSON()
+	Write jsonResponse.%ToJSON()
 	Return tSc
 }
 
