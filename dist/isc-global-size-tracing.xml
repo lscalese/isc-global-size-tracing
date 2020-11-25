@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Export generator="Cache" version="26" zv="IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2020.4 (Build 521U)" ts="2020-11-23 16:45:10">
+<Export generator="Cache" version="26" zv="IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2020.4 (Build 521U)" ts="2020-11-25 11:06:44">
 <Class name="Iris.Tools.Monitor.Dao.DBSizeDAO">
-<TimeChanged>65706,45259.291031</TimeChanged>
-<TimeCreated>65706,45259.291031</TimeCreated>
+<TimeChanged>65708,39556.058715</TimeChanged>
+<TimeCreated>65708,39556.058715</TimeCreated>
 
 <Method name="setSize">
 <Description>
@@ -314,8 +314,8 @@ Return the list of database directory on this system.</Description>
 
 
 <Class name="Iris.Tools.Monitor.Dao.GlobalSizeDAO">
-<TimeChanged>65706,45259.29108</TimeChanged>
-<TimeCreated>65706,45259.29108</TimeCreated>
+<TimeChanged>65708,39556.061455</TimeChanged>
+<TimeCreated>65708,39556.061455</TimeCreated>
 
 <Method name="getGlobalList">
 <Description>
@@ -399,14 +399,14 @@ Usefull method to retrieve size of global data, following filters : <br/><ul>
 <li><b>endDate</b>: end date in %Date format</li>
 </ul>]]></Description>
 <ClassMethod>1</ClassMethod>
-<FormalSpec>database:%String,global:%String="*",recordType:%String,startDate:%Date,endDate:%Date=+$h</FormalSpec>
+<FormalSpec>database:%String,global:%String="*",recordType:%String,startDate:%Date,endDate:%Date=+$h,max:%Integer=-1</FormalSpec>
 <ReturnType>%DynamicArray</ReturnType>
 <Implementation><![CDATA[
 	Set response = []
 	Set tStatement = ##class(%SQL.Statement).%New()
 	Set sc = tStatement.%PrepareClassQuery("Iris.Tools.Monitor.Dao.GlobalSizeDAO","FilterGlobalSize")
 	If $$$ISERR(sc) $$$ThrowStatus(sc)
-	Set tResult = tStatement.%Execute(.database,.global,.recordType,.startDate,.endDate)
+	Set tResult = tStatement.%Execute(.database,.global,.recordType,.startDate,.endDate,max)
 	If (tResult.%SQLCODE'=0)&&(tResult.%SQLCODE'=100) $$$ThrowStatus($$$ERROR($$$SQLError, tResult.%SQLCODE, tResult.%Message)) 
 	While tResult.%Next() {
 		Set tObj = ..getDTO(tResult.%Get("database"),
@@ -521,14 +521,14 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
 
 <Query name="FilterGlobalSize">
 <Type>%Query</Type>
-<FormalSpec>database:%String,global:%String,recordType:%String,startDate:%Date,endDate:%Date</FormalSpec>
+<FormalSpec>database:%String,global:%String,recordType:%String,startDate:%Date,endDate:%Date,max:%Integer=-1</FormalSpec>
 <SqlProc>1</SqlProc>
 <Parameter name="ROWSPEC" value="database:%String,global:%String,allocatedInMB:%Float,tsUpdate:%TimeStamp,tsCreate:%TimeStamp,Year:%Integer,Month:%Integer,Week:%Integer,sizeDate:%Date,uHlp:%Integer,tsDate:%TimeStamp"/>
 </Query>
 
 <Method name="FilterGlobalSizeExecute">
 <ClassMethod>1</ClassMethod>
-<FormalSpec><![CDATA[&qHandle:%Binary,database:%String,global:%String,recordType:%String,startDate:%Date,endDate:%Date]]></FormalSpec>
+<FormalSpec><![CDATA[&qHandle:%Binary,database:%String,global:%String,recordType:%String,startDate:%Date,endDate:%Date,max:%Integer=-1]]></FormalSpec>
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
 	Set startUHlp = ##class(Iris.Tools.Monitor.Data.GlobalSize).cmUHlpGet(.recordType,.startDate)
@@ -538,7 +538,10 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
     			_"WHERE uHLP >= ? AND uHLP <= ? "
     			_$s($lv(database):"and database %INLIST ? ",database'="*":"and database = ? ",1:"")
     			_$s($lv(global):"and sql_global %INLIST ? ",global'="*":"and sql_global = ? ",1:"")
-    			_"and recordType = ?"
+    			_"and recordType = ? "
+				
+	Set:max'=-1 tSql = tSql _"ORDER BY allocatedInMB DESC "
+	
     Set params($i(params))=startUHlp
     Set params($i(params))=endUHlp
     Set:database'="*" params($i(params))=database
@@ -548,8 +551,10 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
     Set sc = tStatement.%Prepare(.tSql)
 	Set tResult = tStatement.execute(params...) ; ^lsc:No %Execute for passing array.  The first time I have bitten my keyboard... GoTo Read %SQL.Statement code for understanding.
     Return:(tResult.%SQLCODE'=0)&&(tResult.%SQLCODE'=100) $$$ERROR($$$SQLError, tResult.%SQLCODE, tResult.%Message) 
-    Set qHandle=tResult
-    Quit $$$OK
+    Set qHandle(1)=tResult
+	Set qHandle("max")=max
+	Set qHandle("cnt")=0
+	Quit $$$OK
 ]]></Implementation>
 </Method>
 
@@ -559,11 +564,12 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
 <PlaceAfter>FilterGlobalSizeExecute</PlaceAfter>
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
-	Set tResult=qHandle, sc = $$$OK
-	If 'tResult.%Next() {
+	Set tResult=qHandle(1), sc = $$$OK
+	If 'tResult.%Next() || ( ( qHandle("max") '= -1 ) && ( +qHandle("cnt") = qHandle("max") ) ) {
 		Set AtEnd = 1
 		Set Row = ""
 	}Else{
+		Set qHandle("cnt") = $Increment(qHandle("cnt"))
 		Set Row = $Listbuild(tResult.%Get("database"),tResult.%Get("sql_global"),tResult.%Get("allocatedInMB"),tResult.%Get("tsUpdate"),tResult.%Get("tsCreate"),tResult.%Get("Year"),tResult.%Get("Month"),tResult.%Get("Week"),tResult.%Get("sizeDate"),tResult.%Get("uHlp"),$zd(tResult.%Get("sizeDate"),3))
 	}
 	Return sc
@@ -576,7 +582,7 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
 <PlaceAfter>FilterGlobalSizeFetch</PlaceAfter>
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
-	Set qHandle=""
+	Set qHandle(1)=""
     Return $$$OK
 ]]></Implementation>
 </Method>
@@ -628,8 +634,8 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
 
 
 <Class name="Iris.Tools.Monitor.Dao.UtilsDAO">
-<TimeChanged>65706,45259.276247</TimeChanged>
-<TimeCreated>65706,45259.276247</TimeCreated>
+<TimeChanged>65708,39556.025679</TimeChanged>
+<TimeCreated>65708,39556.025679</TimeCreated>
 
 <Method name="rsToCSVStream">
 <ClassMethod>1</ClassMethod>
@@ -669,8 +675,8 @@ Peristent class designed for store the database size following one record per : 
 <li>Year</li>
 </ul>]]></Description>
 <Super>%Persistent,Iris.Tools.Monitor.Data.GSCommon</Super>
-<TimeChanged>65706,45259.296956</TimeChanged>
-<TimeCreated>65706,45259.296956</TimeCreated>
+<TimeChanged>65708,39556.08828</TimeChanged>
+<TimeCreated>65708,39556.08828</TimeCreated>
 
 <Property name="database">
 <Description>
@@ -772,8 +778,8 @@ Freespace on the used disk by the database file.</Description>
 
 <Class name="Iris.Tools.Monitor.Data.GSCommon">
 <Abstract>1</Abstract>
-<TimeChanged>65706,45259.343374</TimeChanged>
-<TimeCreated>65706,45259.343374</TimeCreated>
+<TimeChanged>65708,39556.084813</TimeChanged>
+<TimeCreated>65708,39556.084813</TimeCreated>
 
 <Property name="tsCreate">
 <Description>
@@ -926,8 +932,8 @@ Peristent class designed for store the growth of global size following one recor
 <li>Year</li>
 </ul>]]></Description>
 <Super>%Persistent,Iris.Tools.Monitor.Data.GSCommon</Super>
-<TimeChanged>65706,45259.310445</TimeChanged>
-<TimeCreated>65706,45259.310445</TimeCreated>
+<TimeChanged>65708,39556.081095</TimeChanged>
+<TimeCreated>65708,39556.081095</TimeCreated>
 
 <Property name="database">
 <Description>
@@ -1024,8 +1030,8 @@ Allocated size for the global in MB.</Description>
 
 <Class name="Iris.Tools.Monitor.Rest.Size">
 <Super>%CSP.REST</Super>
-<TimeChanged>65706,45259.334076</TimeChanged>
-<TimeCreated>65706,45259.334076</TimeCreated>
+<TimeChanged>65708,39556.113699</TimeChanged>
+<TimeCreated>65708,39556.113699</TimeCreated>
 
 <Parameter name="CONTENTTYPE">
 <Default>application/json</Default>
@@ -1084,14 +1090,17 @@ Allocated size for the global in MB.</Description>
 	Set recordType = $Get(%request.Data("recordType",1))
 	Set startDate = $Get(%request.Data("startDate",1))
 	Set endDate = $Get(%request.Data("endDate",1))
-	
+	Set max = +$Get(%request.Data("top",1), -1)
+	Set:max=0 max = -1
+
 	Set:directory="" directory="*"
+	Set:directory["," directory = $Lfs(directory, ",")
 	Set:globals="" globals="*"
 	Set:recordType="" recordType="Day"
 	Set:startDate="" startDate=$zd($h,3)
 	Set:endDate="" endDate=$zd($h,3)
 	
-	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate)
+	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate,max)
 	Write jsonResponse.%ToJSON()
 	Return tSc
 ]]></Implementation>
@@ -1128,8 +1137,8 @@ Allocated size for the global in MB.</Description>
 
 
 <Class name="Iris.Tools.Monitor.Services.DBSizeServices">
-<TimeChanged>65706,45259.321214</TimeChanged>
-<TimeCreated>65706,45259.321214</TimeCreated>
+<TimeChanged>65708,39556.110328</TimeChanged>
+<TimeCreated>65708,39556.110328</TimeCreated>
 
 <Method name="getAllDB">
 <Description>
@@ -1241,8 +1250,8 @@ Return the database directory for a database name.</Description>
 
 
 <Class name="Iris.Tools.Monitor.Services.GlobalSizeServices">
-<TimeChanged>65706,45259.333589</TimeChanged>
-<TimeCreated>65706,45259.333589</TimeCreated>
+<TimeChanged>65708,39556.116223</TimeChanged>
+<TimeCreated>65708,39556.116223</TimeCreated>
 
 <Method name="getAllocatedInMB">
 <Description><![CDATA[
@@ -1291,12 +1300,12 @@ Usefull method to retrieve size of global data, following filters : <br/><ul>
 </ul>
 Return a %DynamicArray for easy use in a rest call.<br/>]]></Description>
 <ClassMethod>1</ClassMethod>
-<FormalSpec>database:%String="*",global:%String="*",recordType:%String="Day",startDate:%TimeStamp={ $zd($h,3)},endDate:%TimeStamp={ $zd($h,3)}</FormalSpec>
+<FormalSpec>database:%String="*",global:%String="*",recordType:%String="Day",startDate:%TimeStamp={ $zd($h,3)},endDate:%TimeStamp={ $zd($h,3)},max:%Integer=-1</FormalSpec>
 <ReturnType>%DynamicArray</ReturnType>
 <Implementation><![CDATA[
 	Set startDateH = $zdh(startDate,3)
 	Set endDateH = $zdh(endDate,3)
-	Set tDynArray = ##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).get(.database,.global,.recordType,.startDateH,.endDateH)
+	Set tDynArray = ##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).get(.database,.global,.recordType,.startDateH,.endDateH,max)
 	Return tDynArray
 ]]></Implementation>
 </Method>
@@ -1435,8 +1444,8 @@ deprecated use : ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirect
 
 <Class name="Iris.Tools.Monitor.Tasks.Projection">
 <Super>%Projection.AbstractProjection</Super>
-<TimeChanged>65706,59895.461747</TimeChanged>
-<TimeCreated>65706,59387.160243</TimeCreated>
+<TimeChanged>65708,39556.117949</TimeChanged>
+<TimeCreated>65708,39556.117949</TimeCreated>
 
 <Method name="CreateProjection">
 <ClassMethod>1</ClassMethod>
@@ -1444,7 +1453,7 @@ deprecated use : ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirect
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
     New $namespace
-	Do ##class(Iris.Tools.Monitor.Tasks.UpdateSize).installTask()
+    Do ##class(Iris.Tools.Monitor.Tasks.UpdateSize).installTask()
     Set oldNs = $namespace
     Set $namespace = "%SYS"
     set webName = "/csp/globaltracing"
@@ -1484,8 +1493,8 @@ deprecated use : ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirect
 Task used for update data of growth of global size<br/>
 Should be performed every day.]]></Description>
 <Super>%SYS.Task.Definition</Super>
-<TimeChanged>65706,59964.758249</TimeChanged>
-<TimeCreated>65706,45259.355513</TimeCreated>
+<TimeChanged>65708,39556.140997</TimeChanged>
+<TimeCreated>65708,39556.140997</TimeCreated>
 
 <Projection name="autoDeploy">
 <Type>Iris.Tools.Monitor.Tasks.Projection</Type>
@@ -1591,458 +1600,6 @@ Install the task for execution every day at 11:00 p.m.</Description>
 	Set tSc = task.%Save()
 	Set:$$$ISOK(tSc) ^monitor.tasks.UpdateSize.id=task.%Id()
 	Return tSc
-]]></Implementation>
-</Method>
-</Class>
-
-
-<Class name="UnitTest.Iris.Tools.Monitor.SizeUnitTest">
-<Super>%UnitTest.TestCase</Super>
-<TimeChanged>65706,46659.727611</TimeChanged>
-<TimeCreated>65706,46659.727611</TimeCreated>
-
-<Property name="tempDirectory">
-<Type>%String</Type>
-<InitialExpression>$zu(12,"unittest")</InitialExpression>
-<Private>1</Private>
-</Property>
-
-<Property name="testUpdateDatabaseGlobalSizeDone">
-<InitialExpression>0</InitialExpression>
-<Private>1</Private>
-</Property>
-
-<Method name="tempDirectorySet">
-<FormalSpec>tempDirectory:%String</FormalSpec>
-<ReturnType>%Status</ReturnType>
-<Implementation><![CDATA[
-	Set i%tempDirectory = ##class(%File).NormalizeDirectory(tempDirectory)
-	Do:(i%tempDirectory'="")&&('##class(%File).DirectoryExists(i%tempDirectory)) ##class(%File).CreateDirectoryChain(i%tempDirectory)
-	Return $$$OK
-]]></Implementation>
-</Method>
-
-<Method name="OnBeforeAllTests">
-<ReturnType>%Status</ReturnType>
-<Implementation><![CDATA[
-	Set tSc = $$$OK
-	$$$TOE(tSc,..backupData())
-	Set ptr=0, listGbl=$lfs(..globalsToRestore(),",")
-	While $listnext(listGbl,ptr,gbl) {
-		Kill @gbl
-	}
-	Return tSc
-]]></Implementation>
-</Method>
-
-<Method name="OnAfterAllTests">
-<ReturnType>%Status</ReturnType>
-<Implementation><![CDATA[	Return ..restoreData()
-]]></Implementation>
-</Method>
-
-<Method name="backupData">
-<ReturnType>%Status</ReturnType>
-<Implementation><![CDATA[
-	Set dbSizeGof = ..backupGofFileName(), tSc = $$$OK, ptr=0, strGbl=..globalsToRestore(), backup = 0, listGbl=$lfs(strGbl,",")
-	While $listnext(listGbl,ptr,gbl) {
-		If $d(@gbl) {
-			Set backup = 1
-			Quit
-		}
-	}
-	Set gofDir = ##class(%File).GetDirectory(dbSizeGof)
-	Do:##class(%File).Exists(dbSizeGof) ##class(%File).Delete(dbSizeGof)
-	Do:'##class(%File).DirectoryExists(gofDir) ##class(%File).CreateDirectoryChain(gofDir)
-	Set:backup tSc = ##class(%Library.Global).Export(,strGbl,dbSizeGof,7)
-	Return tSc
-]]></Implementation>
-</Method>
-
-<Method name="restoreData">
-<ReturnType>%Status</ReturnType>
-<Implementation><![CDATA[
-	Set dbSizeGof = ..backupGofFileName(), tSc = $$$OK, ptr=0, strGbl = ..globalsToRestore(), listGbl=$lfs(strGbl,",")
-	While $listnext(listGbl,ptr,gbl) {
-		Kill @gbl
-	}
-	Set:##class(%File).Exists(dbSizeGof) tSc = ##class(%Library.Global).Import(,strGbl,dbSizeGof,7)
-	Return tSc
-]]></Implementation>
-</Method>
-
-<Method name="globalsToRestore">
-<ClassMethod>1</ClassMethod>
-<CodeMode>expression</CodeMode>
-<ReturnType>%String</ReturnType>
-<Implementation><![CDATA[
-"^Iris.Tools.MonitorA859.DBSizeD,^Iris.Tools.MonitorA859.DBSizeI,^Iris.Tools.MonitorA859.DBSizeS,"
-		_"^Iris.Tools.MoniA859.GlobalSizeD,^Iris.Tools.MoniA859.GlobalSizeI,^Iris.Tools.MoniA859.GlobalSizeS"
-]]></Implementation>
-</Method>
-
-<Method name="backupGofFileName">
-<CodeMode>expression</CodeMode>
-<ReturnType>%String</ReturnType>
-<Implementation><![CDATA[..tempDirectory_"backup-dbSize.gof"
-]]></Implementation>
-</Method>
-
-<Method name="TestGetAllDB">
-<Description>
-Test service ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getAllDB()</Description>
-<Implementation><![CDATA[
-	Set dbList = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getAllDB()
-	Do $$$AssertNotEquals(($ll(dbList)>0),0,"Test service getAllDB() - check if dbList size > 0")
-]]></Implementation>
-</Method>
-
-<Method name="TestGetDbDirectory">
-<Description>
-Test service ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getDbDirectory(databasename)</Description>
-<Implementation><![CDATA[
-	Set dbName = ..getDBName()
-	Do $$$AssertNotEquals(##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getDbDirectory(dbName),"","Test service getDbDirectory(databasename)")
-]]></Implementation>
-</Method>
-
-<Method name="TestGetGlobalListForDB">
-<Description>
-Test service ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getGlobalListForDB(database)</Description>
-<Implementation><![CDATA[
-	Set dbName = ..getDBName()
-	Do $$$LogMessage("Get global list for "_dbName)
-	Set database = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getDbDirectory(dbName)
-	Do $$$LogMessage("DB directory "_database)
-	Set gblList = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getGlobalListForDB(database)
-	Do $$$AssertEquals(($ll(gblList)>0),1,"Test service getGlobalListForDB(database) - check if list of global > 0")
-]]></Implementation>
-</Method>
-
-<Method name="TestUpdateDatabaseGlobalSize">
-<Description>
-Test service ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).updateDatabaseGlobalSize(database)</Description>
-<Implementation><![CDATA[
-	Set dbName = ..getDBName()
-	Set database = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getDbDirectory(dbName)
-	Set tSc = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).updateDatabaseGlobalSize(database)
-	Do $$$AssertStatusOK(##class(Iris.Tools.Monitor.Services.GlobalSizeServices).updateDatabaseGlobalSize(database),"Update all globals size for a database.")
-	Set ..testUpdateDatabaseGlobalSizeDone=1
-]]></Implementation>
-</Method>
-
-<Method name="TestGet">
-<Description>
-Test service ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).updateDatabaseGlobalSize(database)</Description>
-<Implementation><![CDATA[
-	Do:'..testUpdateDatabaseGlobalSizeDone ..TestUpdateDatabaseGlobalSize()
-	Set dbName = ..getDBName()
-	Set database = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getDbDirectory(dbName)
-	Set gblList = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getGlobalListForDB(database)
-	Set periodList = ..periodList()
-	For i=1:1:$ll(gblList) {
-		For j=1:1:$ll(periodList) {
-			Set res=##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(database,$lg(gblList,i),$lg(periodList,j))
-			Do $$$AssertEquals(res.%Size(),1,$$$FormatText("Checking global %1 in DB %2, period %3 ",$lg(gblList,i),database,$lg(periodList,j)))
-		}
-	}
-]]></Implementation>
-</Method>
-
-<Method name="TestGetByDatabase">
-<Description>
-Test service ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).updateDatabaseGlobalSize(database)</Description>
-<Implementation><![CDATA[
-	Do:'..testUpdateDatabaseGlobalSizeDone ..TestUpdateDatabaseGlobalSize()
-	Set dbName = ..getDBName()
-	Set database = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getDbDirectory(dbName)
-	Set gblList = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).getGlobalListForDB(database)
-	Set periodList = ..periodList()
-	
-	For j=1:1:$ll(periodList) {
-		Set res=##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(database,"*",$lg(periodList,j))
-		Set iter = res.%GetIterator()
-		While iter.%GetNext(.key , .value ) {
-			Set arrResult(value.global)=""
-	    }
-		For i=1:1:$ll(gblList) {
-			Do $$$AssertEquals($Data(arrResult($lg(gblList,i))),1,$$$FormatText("Checking global %1 in DB %2, period %3 ",$lg(gblList,i),database,$lg(periodList,j)))
-		}
-		Kill arrResult
-	}
-]]></Implementation>
-</Method>
-
-<UDLText name="T">
-<Content><![CDATA[
-/*Method TestTask()
-{
- 	#dim task As Iris.Tools.Monitor.Tasks.UpdateSize
- 	Set task = ##class(Iris.Tools.Monitor.Tasks.UpdateSize).%New()
-	Set task.latestSizeFile = $zu(12)_"Temp/lastestGlobalSize.csv"
-	Set task.latestDBSizeFile = $zu(12)_"Temp/lastestDBSize.csv"
-	Set task.decimalPointIsComma = 1
-	Do:##class(%File).Exists(task.latestSizeFile) ##class(%File).Delete(task.latestSizeFile)
-	Do $$$AssertStatusOK(task.OnTask(),"Test task update all globals size for all databases.")
-	Do $$$AssertEquals(##class(%File).Exists(task.latestSizeFile),1,"file "_task.latestSizeFile_" exists")
-	Do $$$AssertEquals(##class(%File).Exists(task.latestDBSizeFile),1,"file "_task.latestDBSizeFile_" exists")
-	Do:##class(%File).Exists(task.latestSizeFile) ##class(%File).Delete(task.latestSizeFile)
-	Do:##class(%File).Exists(task.latestDBSizeFile) ##class(%File).Delete(task.latestDBSizeFile)
-}*/
-]]></Content>
-</UDLText>
-
-<Method name="TestUpdateAllDBSize">
-<Implementation><![CDATA[	Do $$$AssertStatusOK(##class(Iris.Tools.Monitor.Services.DBSizeServices).updateAllDBSize(),"Update all database size")
-]]></Implementation>
-</Method>
-
-<Method name="TestDBSizeGet">
-<Implementation><![CDATA[
-	Do $$$LogMessage($i(i))
-	Do ..TestUpdateAllDBSize()
-	Do $$$LogMessage($i(i))
-	Set dbName = ..getDBName()
-	Do $$$LogMessage($i(i))
-	Set database = ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirectory(dbName)
-	Do $$$LogMessage($i(i))
-	Set periodList = ..periodList()
-	For j=1:1:$ll(periodList) {
-		Set res=##class(Iris.Tools.Monitor.Services.DBSizeServices).get(database,$lg(periodList,j))
-		Do $$$AssertEquals(res.%Size(),1,$$$FormatText("Checking DB %1, period %2 , result %3",database,$lg(periodList,j),res.%Size()))
-	}
-]]></Implementation>
-</Method>
-
-<Method name="TestDBSizeGetAndExportToFile">
-<Implementation><![CDATA[
-	Do ..TestUpdateAllDBSize()
-	Set latestDBSizeFile = "lastestDBSize.csv"
-	Do $$$LogMessage($$$FormatText("Delete file %1 (if exist)",latestDBSizeFile))
-	Do:##class(%File).Exists(latestDBSizeFile) ##class(%File).Delete(latestDBSizeFile)
-	Set periodList = ..periodList()
-	For i=1:1:$ll(periodList) {
-		Set tSc = ##class(Iris.Tools.Monitor.Services.DBSizeServices).getAndExportToFile(latestDBSizeFile,"*",$lg(periodList,i),,)
-		Do $$$AssertStatusOK(tSc,$$$FormatText("Test service getAndExportToFile with recordType %1",$lg(periodList,i)))
-		Do $$$AssertEquals(##class(%File).Exists(latestDBSizeFile),1,"file "_latestDBSizeFile_" exists")
-		Do $$$LogMessage($$$FormatText("Delete file %1 (if exist)",latestDBSizeFile))
-		;hang 0.5 ; Windows security, waiting for release lock
-		Do:##class(%File).Exists(latestDBSizeFile) ##class(%File).Delete(latestDBSizeFile)
-	}
-]]></Implementation>
-</Method>
-
-<Method name="TestDBSizeExportSizeToFile">
-<Implementation><![CDATA[
-	Do ..TestUpdateAllDBSize()
-	Set latestDBSizeFile = "lastestDBSize.csv"
-	Do $$$LogMessage($$$FormatText("Delete file %1 (if exist)",latestDBSizeFile))
-	Do:##class(%File).Exists(latestDBSizeFile) ##class(%File).Delete(latestDBSizeFile)
-	Set periodList = ..periodList()
-	For i=1:1:$ll(periodList) {
-		Set tSc = ##class(Iris.Tools.Monitor.Services.DBSizeServices).exportSizeToFile(latestDBSizeFile,$zd($h,3,1),$lg(periodList,i))
-		Do $$$AssertStatusOK(tSc,$$$FormatText("Test service exportSizeToFile with recordType %1",$lg(periodList,i)))
-		Do $$$AssertEquals(##class(%File).Exists(latestDBSizeFile),1,"file "_latestDBSizeFile_" exists")
-		Do $$$LogMessage($$$FormatText("Delete file %1 (if exist)",latestDBSizeFile))
-		;hang 0.5 ; Windows security, waiting for release lock
-		Do:##class(%File).Exists(latestDBSizeFile) ##class(%File).Delete(latestDBSizeFile)
-	}
-]]></Implementation>
-</Method>
-
-<Method name="TestDBSizeClean">
-<Implementation><![CDATA[
-	Set tSc = ..generateDBSizeData($h-110,$h-70)
-	Do $$$AssertStatusOK(tSc,"Generate old fake data.")
-	
-	Set database = $lg(..getDBDir(),1)
-	Set checkDate = $zd($h-91,3)
-	Set periodList = ..periodList()
-	
-	For j=1:1:$ll(periodList) {
-		Set res=##class(Iris.Tools.Monitor.Services.DBSizeServices).get(database,$lg(periodList,j),checkDate,checkDate)
-		Do $$$AssertEquals(res.%Size(),1,$$$FormatText("Checking DB %1, recordtype %2 ",database,$lg(periodList,j)))
-	}
-	
-	
-	
-	Set tSc = ##class(Iris.Tools.Monitor.Services.DBSizeServices).clean(90,12,-1,-1)
-	Do $$$AssertStatusOK(tSc,"Test service DBSize clean.")
-	Do $$$LogMessage("Check if the data has been deleted.")
-	
-	For j=1:1:$ll(periodList) {
-		Set cPeriod = $lg(periodList,j)
-		Set res=##class(Iris.Tools.Monitor.Services.DBSizeServices).get(database,cPeriod,checkDate,checkDate)
-		If (cPeriod="Day")||(cPeriod="Week") {
-			Do $$$AssertEquals(res.%Size(),0,$$$FormatText("Checking DB %1, period %2 ",database,cPeriod))
-		}Else{
-			Do $$$AssertEquals(res.%Size(),1,$$$FormatText("Checking DB %1, period %2 ",database,cPeriod))
-		}
-	}
-	
-	Set checkDate = $zd($h-71,3)
-	
-	Do $$$LogMessage("Check if recent data still available.")
-	
-	For j=1:1:$ll(periodList) {
-		Set cPeriod = $lg(periodList,j)
-		Set res=##class(Iris.Tools.Monitor.Services.DBSizeServices).get(database,cPeriod,checkDate,checkDate)
-		Do $$$AssertEquals(res.%Size(),1,$$$FormatText("Checking DB %1, recordtype %2 ",database,cPeriod))
-	}
-]]></Implementation>
-</Method>
-
-<Method name="generateDBSizeData">
-<FormalSpec>dStart=$h-100,dEnd=$h-70</FormalSpec>
-<Implementation><![CDATA[
-	Set tSc = $$$OK
-	Try{
-		Set dbList = ..getDBDir()
-		For i=dStart:1:dEnd {
-			Set sizeDate=i
-			Set ptr = 0
-			While $listnext(dbList,ptr,db) {
-				Set v1=$r(10000),v2=$r(10000),v3=$r(10000)
-				$$$TOE(tSc,##class(Iris.Tools.Monitor.Dao.DBSizeDAO).setSize("Day",db,v1,v2,v3,sizeDate))
-				$$$TOE(tSc,##class(Iris.Tools.Monitor.Dao.DBSizeDAO).setSize("Week",db,v1,v2,v3,sizeDate))
-				$$$TOE(tSc,##class(Iris.Tools.Monitor.Dao.DBSizeDAO).setSize("Month",db,v1,v2,v3,sizeDate))
-				$$$TOE(tSc,##class(Iris.Tools.Monitor.Dao.DBSizeDAO).setSize("Year",db,v1,v2,v3,sizeDate))
-			}
-		}
-	}Catch(ex) {
-		Set tSc = ex.AsStatus()
-	}
-	Return tSc
-]]></Implementation>
-</Method>
-
-<Method name="TestClean">
-<Implementation><![CDATA[
-	
-	Set tSc = ..generateData($h-110,$h-70)
-	Do $$$AssertStatusOK(tSc,"Generate old fake data.")
-	Set gblList = ..getGlobalName()
-	Set database = $lg(..getDBDir())
-	Set checkDate = $zd($h-91,3)
-	Set periodList = ..periodList()
-	For i=1:1:$ll(gblList) {
-		For j=1:1:$ll(periodList) {
-			Set res=##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(database,$lg(gblList,i),$lg(periodList,j),checkDate,checkDate)
-			Do $$$AssertEquals(res.%Size(),1,$$$FormatText("Checking global %1 in DB %2, period %3 ",$lg(gblList,i),database,$lg(periodList,j)))
-		}
-	}
-	
-	Set tSc = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).clean(90,12,-1,-1)
-	
-	Do $$$AssertStatusOK(tSc,"Test service clean.")
-	Do $$$LogMessage("Check if the data has been deleted.")
-	For i=1:1:$ll(gblList) {
-		For j=1:1:$ll(periodList) {
-			Set cPeriod = $lg(periodList,j)
-			Set res=##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(database,$lg(gblList,i),cPeriod,checkDate,checkDate)
-			If (cPeriod="Day")||(cPeriod="Week") {
-				Do $$$AssertEquals(res.%Size(),0,$$$FormatText("Checking global %1 in DB %2, period %3 ",$lg(gblList,i),database,cPeriod))
-			}Else{
-				Do $$$AssertEquals(res.%Size(),1,$$$FormatText("Checking global %1 in DB %2, period %3 ",$lg(gblList,i),database,cPeriod))
-			}
-		}
-	}
-	Set checkDate = $zd($h-71,3)
-	
-	Do $$$LogMessage("Check if recent data is still available.")
-	For i=1:1:$ll(gblList) {
-		For j=1:1:$ll(periodList) {
-			Set cPeriod = $lg(periodList,j)
-			Set res=##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(database,$lg(gblList,i),cPeriod,checkDate,checkDate)
-			Do $$$AssertEquals(res.%Size(),1,$$$FormatText("Checking global %1 in DB %2, period %3 ",$lg(gblList,i),database,cPeriod))
-		}
-	}
-]]></Implementation>
-</Method>
-
-<Method name="getDBName">
-<ClassMethod>1</ClassMethod>
-<Implementation><![CDATA[
-	Set ns = $namespace
-	Try {
-		Set $namespace="%SYS"
-		Do ##class(Config.Namespaces).Get(ns,.Properties)
-		Set dbName = Properties("Globals")
-		Set ^||dbName = dbName
-		Set $namespace=ns
-	}Catch(ex){
-		Set $namespace=ns
-		Throw ex
-	}
-	Return dbName
-]]></Implementation>
-</Method>
-
-<Method name="periodList">
-<ClassMethod>1</ClassMethod>
-<CodeMode>expression</CodeMode>
-<Implementation><![CDATA[$lb("Day","Week","Month","Year")
-]]></Implementation>
-</Method>
-
-<Method name="generateData">
-<ClassMethod>1</ClassMethod>
-<FormalSpec>dStart=$h-100,dEnd=$h-70</FormalSpec>
-<ReturnType>%Status</ReturnType>
-<Implementation><![CDATA[
-	Set tSc = $$$OK
-	Try{
-		
-		;Write !,$$$FormatText("Generate data from %1 to %2",$zd(dStart,3),$zd(dEnd,3))
-		Set dbList = ..getDBDir()
-		Set gblName = ..getGlobalName()
-		
-		For i=dStart:1:dEnd {
-			Set sizeDate=i
-			Set ptr = 0
-			While $listnext(dbList,ptr,db) {
-				Set ptr2 = 0
-				While $listnext(gblName,ptr2,gbl) {
-					If +$g(arrSize(db,gbl))=0 {
-						Set arrSize(db,gbl)=$r(2000)
-					}Else{
-						Set v = arrSize(db,gbl) * $r(20) / 1000
-						Set arrSize(db,gbl) = $s($r(10)>8:arrSize(db,gbl)-v,1:arrSize(db,gbl)+v)
-					}
-					$$$TOE(tSc,##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).setSize("Day",db,gbl,arrSize(db,gbl),sizeDate))
-					$$$TOE(tSc,##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).setSize("Week",db,gbl,arrSize(db,gbl),sizeDate))
-					$$$TOE(tSc,##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).setSize("Month",db,gbl,arrSize(db,gbl),sizeDate))
-					$$$TOE(tSc,##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).setSize("Year",db,gbl,arrSize(db,gbl),sizeDate))
-				}
-			}
-		}
-		
-	}Catch(ex) {
-		Set tSc = ex.AsStatus()
-	}
-	Return tSc
-]]></Implementation>
-</Method>
-
-<Method name="getDBDir">
-<ClassMethod>1</ClassMethod>
-<ReturnType>%List</ReturnType>
-<Implementation><![CDATA[	Return $lb("c:\dev\dummydb\unittest\")
-]]></Implementation>
-</Method>
-
-<Method name="getGlobalName">
-<ClassMethod>1</ClassMethod>
-<ReturnType>%List</ReturnType>
-<Implementation><![CDATA[
-	Return $lb("a",
-		"zzzUnitTestability",
-		"zzzUnitTestable",
-		"zzzUnitTestabout",
-		"zzzUnitTestabove",
-		"zzzUnitTestaccept",
-		"zzzUnitTestaccording",
-		"zzzUnitTestaccount")
 ]]></Implementation>
 </Method>
 </Class>
