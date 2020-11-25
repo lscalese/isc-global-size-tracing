@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Export generator="Cache" version="26" zv="IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2020.4 (Build 521U)" ts="2020-11-25 11:06:44">
+<Export generator="Cache" version="26" zv="IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2020.4 (Build 521U)" ts="2020-11-25 13:34:06">
 <Class name="Iris.Tools.Monitor.Dao.DBSizeDAO">
-<TimeChanged>65708,39556.058715</TimeChanged>
-<TimeCreated>65708,39556.058715</TimeCreated>
+<TimeChanged>65708,48794.741521</TimeChanged>
+<TimeCreated>65708,48794.741521</TimeCreated>
 
 <Method name="setSize">
 <Description>
@@ -314,8 +314,8 @@ Return the list of database directory on this system.</Description>
 
 
 <Class name="Iris.Tools.Monitor.Dao.GlobalSizeDAO">
-<TimeChanged>65708,39556.061455</TimeChanged>
-<TimeCreated>65708,39556.061455</TimeCreated>
+<TimeChanged>65708,48794.737532</TimeChanged>
+<TimeCreated>65708,48794.737532</TimeCreated>
 
 <Method name="getGlobalList">
 <Description>
@@ -389,6 +389,34 @@ Insert or update a globalSize record.</Description>
 ]]></Implementation>
 </Method>
 
+<Method name="getTopGlobals">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>top:%Integer,database:%String,recordType:%String="Day"</FormalSpec>
+<ReturnType>%List</ReturnType>
+<Implementation><![CDATA[
+	Set tSql = "SELECT sql_global "
+    			_"FROM Iris_Tools_Monitor_Data.GlobalSize "
+    			_"WHERE database = ? "
+    			_"and recordType = ? "
+				_"order by uHLP DESC, allocatedInMB DESC"
+
+	Set tStatement = ##class(%SQL.Statement).%New()
+	Set sc = tStatement.%Prepare( tSql )
+	
+	Set tResult = tStatement.%Execute(.database,.recordType)
+	If (tResult.%SQLCODE'=0)&&(tResult.%SQLCODE'=100) $$$ThrowStatus($$$ERROR($$$SQLError, tResult.%SQLCODE, tResult.%Message)) 
+
+	Set list = "", cnt = 0
+
+	While tResult.%Next() {
+		Set $List(list, $Increment(cnt) ) = tResult.%Get("sql_global")
+		Quit:cnt=top
+	}
+
+	Return list
+]]></Implementation>
+</Method>
+
 <Method name="get">
 <Description><![CDATA[
 Usefull method to retrieve size of global data, following filters : <br/><ul>
@@ -399,14 +427,15 @@ Usefull method to retrieve size of global data, following filters : <br/><ul>
 <li><b>endDate</b>: end date in %Date format</li>
 </ul>]]></Description>
 <ClassMethod>1</ClassMethod>
-<FormalSpec>database:%String,global:%String="*",recordType:%String,startDate:%Date,endDate:%Date=+$h,max:%Integer=-1</FormalSpec>
+<FormalSpec>database:%String,global:%String="*",recordType:%String,startDate:%Date,endDate:%Date=+$h</FormalSpec>
 <ReturnType>%DynamicArray</ReturnType>
 <Implementation><![CDATA[
 	Set response = []
 	Set tStatement = ##class(%SQL.Statement).%New()
 	Set sc = tStatement.%PrepareClassQuery("Iris.Tools.Monitor.Dao.GlobalSizeDAO","FilterGlobalSize")
 	If $$$ISERR(sc) $$$ThrowStatus(sc)
-	Set tResult = tStatement.%Execute(.database,.global,.recordType,.startDate,.endDate,max)
+
+	Set tResult = tStatement.%Execute(.database,.global,.recordType,.startDate,.endDate)
 	If (tResult.%SQLCODE'=0)&&(tResult.%SQLCODE'=100) $$$ThrowStatus($$$ERROR($$$SQLError, tResult.%SQLCODE, tResult.%Message)) 
 	While tResult.%Next() {
 		Set tObj = ..getDTO(tResult.%Get("database"),
@@ -521,14 +550,14 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
 
 <Query name="FilterGlobalSize">
 <Type>%Query</Type>
-<FormalSpec>database:%String,global:%String,recordType:%String,startDate:%Date,endDate:%Date,max:%Integer=-1</FormalSpec>
+<FormalSpec>database:%String,global:%String,recordType:%String,startDate:%Date,endDate:%Date</FormalSpec>
 <SqlProc>1</SqlProc>
 <Parameter name="ROWSPEC" value="database:%String,global:%String,allocatedInMB:%Float,tsUpdate:%TimeStamp,tsCreate:%TimeStamp,Year:%Integer,Month:%Integer,Week:%Integer,sizeDate:%Date,uHlp:%Integer,tsDate:%TimeStamp"/>
 </Query>
 
 <Method name="FilterGlobalSizeExecute">
 <ClassMethod>1</ClassMethod>
-<FormalSpec><![CDATA[&qHandle:%Binary,database:%String,global:%String,recordType:%String,startDate:%Date,endDate:%Date,max:%Integer=-1]]></FormalSpec>
+<FormalSpec><![CDATA[&qHandle:%Binary,database:%String,global:%String,recordType:%String,startDate:%Date,endDate:%Date]]></FormalSpec>
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
 	Set startUHlp = ##class(Iris.Tools.Monitor.Data.GlobalSize).cmUHlpGet(.recordType,.startDate)
@@ -539,8 +568,6 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
     			_$s($lv(database):"and database %INLIST ? ",database'="*":"and database = ? ",1:"")
     			_$s($lv(global):"and sql_global %INLIST ? ",global'="*":"and sql_global = ? ",1:"")
     			_"and recordType = ? "
-				
-	Set:max'=-1 tSql = tSql _"ORDER BY allocatedInMB DESC "
 	
     Set params($i(params))=startUHlp
     Set params($i(params))=endUHlp
@@ -552,8 +579,6 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
 	Set tResult = tStatement.execute(params...) ; ^lsc:No %Execute for passing array.  The first time I have bitten my keyboard... GoTo Read %SQL.Statement code for understanding.
     Return:(tResult.%SQLCODE'=0)&&(tResult.%SQLCODE'=100) $$$ERROR($$$SQLError, tResult.%SQLCODE, tResult.%Message) 
     Set qHandle(1)=tResult
-	Set qHandle("max")=max
-	Set qHandle("cnt")=0
 	Quit $$$OK
 ]]></Implementation>
 </Method>
@@ -565,11 +590,10 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
 <ReturnType>%Status</ReturnType>
 <Implementation><![CDATA[
 	Set tResult=qHandle(1), sc = $$$OK
-	If 'tResult.%Next() || ( ( qHandle("max") '= -1 ) && ( +qHandle("cnt") = qHandle("max") ) ) {
+	If 'tResult.%Next() {
 		Set AtEnd = 1
 		Set Row = ""
 	}Else{
-		Set qHandle("cnt") = $Increment(qHandle("cnt"))
 		Set Row = $Listbuild(tResult.%Get("database"),tResult.%Get("sql_global"),tResult.%Get("allocatedInMB"),tResult.%Get("tsUpdate"),tResult.%Get("tsCreate"),tResult.%Get("Year"),tResult.%Get("Month"),tResult.%Get("Week"),tResult.%Get("sizeDate"),tResult.%Get("uHlp"),$zd(tResult.%Get("sizeDate"),3))
 	}
 	Return sc
@@ -634,8 +658,8 @@ Perform the same operation as <b>get</b> method and store  result to a stream.
 
 
 <Class name="Iris.Tools.Monitor.Dao.UtilsDAO">
-<TimeChanged>65708,39556.025679</TimeChanged>
-<TimeCreated>65708,39556.025679</TimeCreated>
+<TimeChanged>65708,48794.702275</TimeChanged>
+<TimeCreated>65708,48794.702275</TimeCreated>
 
 <Method name="rsToCSVStream">
 <ClassMethod>1</ClassMethod>
@@ -675,8 +699,8 @@ Peristent class designed for store the database size following one record per : 
 <li>Year</li>
 </ul>]]></Description>
 <Super>%Persistent,Iris.Tools.Monitor.Data.GSCommon</Super>
-<TimeChanged>65708,39556.08828</TimeChanged>
-<TimeCreated>65708,39556.08828</TimeCreated>
+<TimeChanged>65708,48794.738794</TimeChanged>
+<TimeCreated>65708,48794.738794</TimeCreated>
 
 <Property name="database">
 <Description>
@@ -778,8 +802,8 @@ Freespace on the used disk by the database file.</Description>
 
 <Class name="Iris.Tools.Monitor.Data.GSCommon">
 <Abstract>1</Abstract>
-<TimeChanged>65708,39556.084813</TimeChanged>
-<TimeCreated>65708,39556.084813</TimeCreated>
+<TimeChanged>65708,48794.775575</TimeChanged>
+<TimeCreated>65708,48794.775575</TimeCreated>
 
 <Property name="tsCreate">
 <Description>
@@ -932,8 +956,8 @@ Peristent class designed for store the growth of global size following one recor
 <li>Year</li>
 </ul>]]></Description>
 <Super>%Persistent,Iris.Tools.Monitor.Data.GSCommon</Super>
-<TimeChanged>65708,39556.081095</TimeChanged>
-<TimeCreated>65708,39556.081095</TimeCreated>
+<TimeChanged>65708,48794.73778</TimeChanged>
+<TimeCreated>65708,48794.73778</TimeCreated>
 
 <Property name="database">
 <Description>
@@ -1030,8 +1054,8 @@ Allocated size for the global in MB.</Description>
 
 <Class name="Iris.Tools.Monitor.Rest.Size">
 <Super>%CSP.REST</Super>
-<TimeChanged>65708,39556.113699</TimeChanged>
-<TimeCreated>65708,39556.113699</TimeCreated>
+<TimeChanged>65708,48794.789129</TimeChanged>
+<TimeCreated>65708,48794.789129</TimeCreated>
 
 <Parameter name="CONTENTTYPE">
 <Default>application/json</Default>
@@ -1086,6 +1110,9 @@ Allocated size for the global in MB.</Description>
 <Implementation><![CDATA[
 	Set tSc = $$$OK
 	Set directory = $Get(%request.Data("directory",1))
+	Set:directory="" directory="*"
+	Set:directory["," directory = $Lfs(directory, ",")
+
 	Set globals = $Get(%request.Data("global",1))
 	Set recordType = $Get(%request.Data("recordType",1))
 	Set startDate = $Get(%request.Data("startDate",1))
@@ -1093,14 +1120,21 @@ Allocated size for the global in MB.</Description>
 	Set max = +$Get(%request.Data("top",1), -1)
 	Set:max=0 max = -1
 
-	Set:directory="" directory="*"
-	Set:directory["," directory = $Lfs(directory, ",")
+	If max '= -1 {
+		If (directory = "*") || $Lv(directory) {
+			Set %response.Status=..#HTTP400BADREQUEST
+			Quit $$$OK
+		}
+		Set globals = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).topGlobals(max, directory, "Day")
+	}
+
+	
 	Set:globals="" globals="*"
 	Set:recordType="" recordType="Day"
 	Set:startDate="" startDate=$zd($h,3)
 	Set:endDate="" endDate=$zd($h,3)
 	
-	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate,max)
+	Set jsonResponse = ##class(Iris.Tools.Monitor.Services.GlobalSizeServices).get(directory,globals,recordType,startDate,endDate)
 	Write jsonResponse.%ToJSON()
 	Return tSc
 ]]></Implementation>
@@ -1137,8 +1171,8 @@ Allocated size for the global in MB.</Description>
 
 
 <Class name="Iris.Tools.Monitor.Services.DBSizeServices">
-<TimeChanged>65708,39556.110328</TimeChanged>
-<TimeCreated>65708,39556.110328</TimeCreated>
+<TimeChanged>65708,48794.767525</TimeChanged>
+<TimeCreated>65708,48794.767525</TimeCreated>
 
 <Method name="getAllDB">
 <Description>
@@ -1250,8 +1284,8 @@ Return the database directory for a database name.</Description>
 
 
 <Class name="Iris.Tools.Monitor.Services.GlobalSizeServices">
-<TimeChanged>65708,39556.116223</TimeChanged>
-<TimeCreated>65708,39556.116223</TimeCreated>
+<TimeChanged>65708,48794.77828</TimeChanged>
+<TimeCreated>65708,48794.77828</TimeCreated>
 
 <Method name="getAllocatedInMB">
 <Description><![CDATA[
@@ -1300,13 +1334,21 @@ Usefull method to retrieve size of global data, following filters : <br/><ul>
 </ul>
 Return a %DynamicArray for easy use in a rest call.<br/>]]></Description>
 <ClassMethod>1</ClassMethod>
-<FormalSpec>database:%String="*",global:%String="*",recordType:%String="Day",startDate:%TimeStamp={ $zd($h,3)},endDate:%TimeStamp={ $zd($h,3)},max:%Integer=-1</FormalSpec>
+<FormalSpec>database:%String="*",global:%String="*",recordType:%String="Day",startDate:%TimeStamp={ $zd($h,3)},endDate:%TimeStamp={ $zd($h,3)}</FormalSpec>
 <ReturnType>%DynamicArray</ReturnType>
 <Implementation><![CDATA[
 	Set startDateH = $zdh(startDate,3)
 	Set endDateH = $zdh(endDate,3)
-	Set tDynArray = ##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).get(.database,.global,.recordType,.startDateH,.endDateH,max)
+	Set tDynArray = ##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).get(.database,.global,.recordType,.startDateH,.endDateH)
 	Return tDynArray
+]]></Implementation>
+</Method>
+
+<Method name="topGlobals">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>top:%Integer,database:%String,recordType:%String="Day"</FormalSpec>
+<ReturnType>%List</ReturnType>
+<Implementation><![CDATA[	Return ##class(Iris.Tools.Monitor.Dao.GlobalSizeDAO).getTopGlobals(top, database, recordType)
 ]]></Implementation>
 </Method>
 
@@ -1444,8 +1486,8 @@ deprecated use : ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirect
 
 <Class name="Iris.Tools.Monitor.Tasks.Projection">
 <Super>%Projection.AbstractProjection</Super>
-<TimeChanged>65708,39556.117949</TimeChanged>
-<TimeCreated>65708,39556.117949</TimeCreated>
+<TimeChanged>65708,48794.799327</TimeChanged>
+<TimeCreated>65708,48794.799327</TimeCreated>
 
 <Method name="CreateProjection">
 <ClassMethod>1</ClassMethod>
@@ -1493,8 +1535,8 @@ deprecated use : ##class(Iris.Tools.Monitor.Services.DBSizeServices).getDbDirect
 Task used for update data of growth of global size<br/>
 Should be performed every day.]]></Description>
 <Super>%SYS.Task.Definition</Super>
-<TimeChanged>65708,39556.140997</TimeChanged>
-<TimeCreated>65708,39556.140997</TimeCreated>
+<TimeChanged>65708,48794.805745</TimeChanged>
+<TimeCreated>65708,48794.805745</TimeCreated>
 
 <Projection name="autoDeploy">
 <Type>Iris.Tools.Monitor.Tasks.Projection</Type>
